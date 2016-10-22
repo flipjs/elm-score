@@ -124,15 +124,14 @@ msgEditPlayer model player =
 msgScore : Model -> Player -> Int -> ( Model, Cmd Msg )
 msgScore model player score =
     let
+        updateScore p =
+            if p.id == player.id then
+                { p | score = p.score + score }
+            else
+                p
+
         players =
-            model.players
-                |> List.map
-                    (\p ->
-                        if p.id == player.id then
-                            { p | score = p.score + score }
-                        else
-                            p
-                    )
+            List.map updateScore model.players
 
         play =
             Play
@@ -163,15 +162,14 @@ msgDeletePlay model play =
             model.plays
                 |> List.filter (\p -> p.id /= play.id)
 
+        updateScore p =
+            if p.id == play.playerId then
+                { p | score = p.score - play.score }
+            else
+                p
+
         players =
-            model.players
-                |> List.map
-                    (\p ->
-                        if p.id == play.playerId then
-                            { p | score = p.score - play.score }
-                        else
-                            p
-                    )
+            List.map updateScore model.players
 
         totalScore =
             model.totalScore - play.score
@@ -206,25 +204,23 @@ savePlayer model =
 updatePlayer : Model -> Int -> ( Model, Cmd Msg )
 updatePlayer model id =
     let
+        updatePlayers p =
+            if p.id == id then
+                { p | name = model.input }
+            else
+                p
+
         players =
-            model.players
-                |> List.map
-                    (\p ->
-                        if p.id == id then
-                            { p | name = model.input }
-                        else
-                            p
-                    )
+            List.map updatePlayers model.players
+
+        updatePlays p =
+            if p.playerId == id then
+                { p | playerName = model.input }
+            else
+                p
 
         plays =
-            model.plays
-                |> List.map
-                    (\p ->
-                        if p.playerId == id then
-                            { p | playerName = model.input }
-                        else
-                            p
-                    )
+            List.map updatePlays model.plays
     in
         ( { model
             | players = players
@@ -262,15 +258,17 @@ view model =
 playerList : List Player -> Html Msg
 playerList players =
     div []
-        [ players |> List.sortBy .name |> List.map playerItem |> ul [] ]
+        [ players
+            |> List.sortBy .name
+            |> List.map playerItem
+            |> ul []
+        ]
 
 
 playerItem : Player -> Html Msg
 playerItem player =
     li []
-        [ text player.name
-        , player.score |> toString |> (++) " " |> text
-        , text " points "
+        [ text (player.name ++ " - " ++ (toString player.score) ++ " points ")
         , button [ onClick (Score player 2) ] [ text "score 2 points" ]
         , button [ onClick (Score player 3) ] [ text "score 3 points" ]
         , button [ onClick (EditPlayer player) ] [ text "Edit Player" ]
@@ -280,14 +278,17 @@ playerItem player =
 playList : List Play -> Html Msg
 playList plays =
     div []
-        [ plays |> List.map playItem |> ul [] ]
+        [ plays
+            |> List.map playItem
+            |> ul []
+        ]
 
 
 playItem : Play -> Html Msg
 playItem play =
     li []
-        [ text (play.playerName ++ " scored " ++ (toString play.score))
-        , button [ onClick (DeletePlay play) ] [ text "Delete Play" ]
+        [ text (play.playerName ++ " " ++ (toString play.score) ++ " points ")
+        , button [ onClick (DeletePlay play) ] [ text "Delete" ]
         ]
 
 
