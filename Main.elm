@@ -204,23 +204,23 @@ savePlayer model =
 updatePlayer : Model -> Int -> ( Model, Cmd Msg )
 updatePlayer model id =
     let
-        updatePlayers p =
+        updateName p =
             if p.id == id then
                 { p | name = model.input }
             else
                 p
 
         players =
-            List.map updatePlayers model.players
+            List.map updateName model.players
 
-        updatePlays p =
+        updatePlayerName p =
             if p.playerId == id then
                 { p | playerName = model.input }
             else
                 p
 
         plays =
-            List.map updatePlays model.plays
+            List.map updatePlayerName model.plays
     in
         ( { model
             | players = players
