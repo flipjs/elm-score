@@ -53,106 +53,136 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Input name ->
-            ( { model
-                | input = name
-              }
-            , Cmd.none
-            )
+            msgInput model name
 
         Cancel ->
-            ( { model
-                | input = ""
-                , playerId = Nothing
-              }
-            , Cmd.none
-            )
+            msgCancel model
 
         Save ->
-            case model.playerId of
-                Just id ->
-                    if model.input == "" then
-                        ( { model
-                            | input = ""
-                            , playerId = Nothing
-                          }
-                        , Cmd.none
-                        )
-                    else
-                        updatePlayer model id
-
-                Nothing ->
-                    if model.input == "" then
-                        ( model, Cmd.none )
-                    else
-                        savePlayer model
+            msgSave model
 
         EditPlayer player ->
-            ( { model
-                | input = player.name
-                , playerId = Just player.id
-              }
-            , Cmd.none
-            )
+            msgEditPlayer model player
 
         Score player score ->
-            let
-                players =
-                    model.players
-                        |> List.map
-                            (\p ->
-                                if p.id == player.id then
-                                    { p | score = p.score + score }
-                                else
-                                    p
-                            )
-
-                play =
-                    Play
-                        (List.length model.plays)
-                        player.name
-                        player.id
-                        score
-
-                plays =
-                    play :: model.plays
-
-                totalScore =
-                    model.totalScore + score
-            in
-                ( { model
-                    | players = players
-                    , plays = plays
-                    , totalScore = totalScore
-                  }
-                , Cmd.none
-                )
+            msgScore model player score
 
         DeletePlay play ->
-            let
-                plays =
-                    model.plays
-                        |> List.filter (\p -> p.id /= play.id)
+            msgDeletePlay model play
 
-                players =
-                    model.players
-                        |> List.map
-                            (\p ->
-                                if p.id == play.playerId then
-                                    { p | score = p.score - play.score }
-                                else
-                                    p
-                            )
 
-                totalScore =
-                    model.totalScore - play.score
-            in
+msgInput : Model -> String -> ( Model, Cmd Msg )
+msgInput model name =
+    ( { model
+        | input = name
+      }
+    , Cmd.none
+    )
+
+
+msgCancel : Model -> ( Model, Cmd Msg )
+msgCancel model =
+    ( { model
+        | input = ""
+        , playerId = Nothing
+      }
+    , Cmd.none
+    )
+
+
+msgSave : Model -> ( Model, Cmd Msg )
+msgSave model =
+    case model.playerId of
+        Just id ->
+            if model.input == "" then
                 ( { model
-                    | players = players
-                    , plays = plays
-                    , totalScore = totalScore
+                    | input = ""
+                    , playerId = Nothing
                   }
                 , Cmd.none
                 )
+            else
+                updatePlayer model id
+
+        Nothing ->
+            if model.input == "" then
+                ( model, Cmd.none )
+            else
+                savePlayer model
+
+
+msgEditPlayer : Model -> Player -> ( Model, Cmd Msg )
+msgEditPlayer model player =
+    ( { model
+        | input = player.name
+        , playerId = Just player.id
+      }
+    , Cmd.none
+    )
+
+
+msgScore : Model -> Player -> Int -> ( Model, Cmd Msg )
+msgScore model player score =
+    let
+        players =
+            model.players
+                |> List.map
+                    (\p ->
+                        if p.id == player.id then
+                            { p | score = p.score + score }
+                        else
+                            p
+                    )
+
+        play =
+            Play
+                (List.length model.plays)
+                player.name
+                player.id
+                score
+
+        plays =
+            play :: model.plays
+
+        totalScore =
+            model.totalScore + score
+    in
+        ( { model
+            | players = players
+            , plays = plays
+            , totalScore = totalScore
+          }
+        , Cmd.none
+        )
+
+
+msgDeletePlay : Model -> Play -> ( Model, Cmd Msg )
+msgDeletePlay model play =
+    let
+        plays =
+            model.plays
+                |> List.filter (\p -> p.id /= play.id)
+
+        players =
+            model.players
+                |> List.map
+                    (\p ->
+                        if p.id == play.playerId then
+                            { p | score = p.score - play.score }
+                        else
+                            p
+                    )
+
+        totalScore =
+            model.totalScore - play.score
+    in
+        ( { model
+            | players = players
+            , plays = plays
+            , totalScore = totalScore
+          }
+        , Cmd.none
+        )
 
 
 savePlayer : Model -> ( Model, Cmd Msg )
