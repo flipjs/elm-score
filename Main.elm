@@ -16,104 +16,117 @@ main =
         }
 
 
-type alias Model =
-    { players : List Player
-    , plays : List Play
-    , input : String
-    , playerId : Maybe Int
-    , totalScore : Int
+
+-- SUBSCRIPTIONS
+
+
+subscriptions : State -> Sub Msg
+subscriptions state =
+    Sub.none
+
+
+
+-- MODEL
+
+
+init : ( State, Cmd Msg )
+init =
+    ( initialState, Cmd.none )
+
+
+initialState : State
+initialState =
+    { players = []
+    , plays = []
+    , input = ""
+    , playerId = Nothing
+    , totalScore = 0
     }
 
 
+type alias State =
+    { players : List Player
+    , plays : List Play
+    , input : Name
+    , playerId : Maybe Id
+    , totalScore : Score
+    }
+
+
+type alias Name =
+    String
+
+
+type alias Id =
+    Int
+
+
+type alias Score =
+    Int
+
+
 type alias Player =
-    { id : Int
-    , name : String
-    , score : Int
+    { id : Id
+    , name : Name
+    , score : Score
     }
 
 
 type alias Play =
-    { id : Int
-    , playerName : String
-    , playerId : Int
-    , score : Int
+    { id : Id
+    , playerName : Name
+    , playerId : Id
+    , score : Score
     }
 
 
+
+-- UPDATE
+
+
 type Msg
-    = Input String
+    = InputName Name
     | EditPlayer Player
-    | Save
-    | Cancel
-    | Score Player Int
+    | AddScore Player Score
     | DeletePlay Play
+    | Cancel
+    | Save
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update : Msg -> State -> ( State, Cmd Msg )
+update msg state =
     case msg of
-        Input name ->
-            msgInput model name
-
-        Cancel ->
-            msgCancel model
-
-        Save ->
-            msgSave model
+        InputName name ->
+            actionInputName state name
 
         EditPlayer player ->
-            msgEditPlayer model player
+            actionEditPlayer state player
 
-        Score player score ->
-            msgScore model player score
+        AddScore player score ->
+            actionAddScore state player score
 
         DeletePlay play ->
-            msgDeletePlay model play
+            actionDeletePlay state play
+
+        Cancel ->
+            actionCancel state
+
+        Save ->
+            actionSave state
 
 
-msgInput : Model -> String -> ( Model, Cmd Msg )
-msgInput model name =
-    ( { model
+actionInputName : State -> Name -> ( State, Cmd Msg )
+actionInputName state name =
+    ( { state
         | input = name
       }
     , Cmd.none
     )
 
 
-msgCancel : Model -> ( Model, Cmd Msg )
-msgCancel model =
-    ( { model
-        | input = ""
-        , playerId = Nothing
-      }
-    , Cmd.none
-    )
-
-
-msgSave : Model -> ( Model, Cmd Msg )
-msgSave model =
-    case model.playerId of
-        Just id ->
-            if model.input == "" then
-                ( { model
-                    | input = ""
-                    , playerId = Nothing
-                  }
-                , Cmd.none
-                )
-            else
-                updatePlayer model id
-
-        Nothing ->
-            if model.input == "" then
-                ( model, Cmd.none )
-            else
-                savePlayer model
-
-
-msgEditPlayer : Model -> Player -> ( Model, Cmd Msg )
-msgEditPlayer model player =
-    ( { model
+actionEditPlayer : State -> Player -> ( State, Cmd Msg )
+actionEditPlayer state player =
+    ( { state
         | input = player.name
         , playerId = Just player.id
       }
@@ -121,32 +134,32 @@ msgEditPlayer model player =
     )
 
 
-msgScore : Model -> Player -> Int -> ( Model, Cmd Msg )
-msgScore model player score =
+actionAddScore : State -> Player -> Score -> ( State, Cmd Msg )
+actionAddScore state player score =
     let
-        updateScore p =
-            if p.id == player.id then
-                { p | score = p.score + score }
+        updateScore player' =
+            if player'.id == player.id then
+                { player' | score = player'.score + score }
             else
-                p
+                player'
 
         players =
-            List.map updateScore model.players
+            List.map updateScore state.players
 
         play =
             Play
-                (List.length model.plays)
+                (List.length state.plays)
                 player.name
                 player.id
                 score
 
         plays =
-            play :: model.plays
+            play :: state.plays
 
         totalScore =
-            model.totalScore + score
+            state.totalScore + score
     in
-        ( { model
+        ( { state
             | players = players
             , plays = plays
             , totalScore = totalScore
@@ -155,26 +168,26 @@ msgScore model player score =
         )
 
 
-msgDeletePlay : Model -> Play -> ( Model, Cmd Msg )
-msgDeletePlay model play =
+actionDeletePlay : State -> Play -> ( State, Cmd Msg )
+actionDeletePlay state play =
     let
-        plays =
-            model.plays
-                |> List.filter (\p -> p.id /= play.id)
-
-        updateScore p =
-            if p.id == play.playerId then
-                { p | score = p.score - play.score }
+        updateScore player =
+            if player.id == play.playerId then
+                { player | score = player.score - play.score }
             else
-                p
+                player
 
         players =
-            List.map updateScore model.players
+            List.map updateScore state.players
+
+        plays =
+            state.plays
+                |> List.filter (\{ id } -> id /= play.id)
 
         totalScore =
-            model.totalScore - play.score
+            state.totalScore - play.score
     in
-        ( { model
+        ( { state
             | players = players
             , plays = plays
             , totalScore = totalScore
@@ -183,16 +196,47 @@ msgDeletePlay model play =
         )
 
 
-savePlayer : Model -> ( Model, Cmd Msg )
-savePlayer model =
+actionCancel : State -> ( State, Cmd Msg )
+actionCancel state =
+    ( { state
+        | input = ""
+        , playerId = Nothing
+      }
+    , Cmd.none
+    )
+
+
+actionSave : State -> ( State, Cmd Msg )
+actionSave state =
+    case state.playerId of
+        Just id ->
+            if state.input == "" then
+                ( { state
+                    | input = ""
+                    , playerId = Nothing
+                  }
+                , Cmd.none
+                )
+            else
+                updatePlayer state id
+
+        Nothing ->
+            if state.input == "" then
+                ( state, Cmd.none )
+            else
+                savePlayer state
+
+
+savePlayer : State -> ( State, Cmd Msg )
+savePlayer state =
     let
         player =
-            Player (List.length model.players) model.input 0
+            Player (List.length state.players) state.input 0
 
         players =
-            player :: model.players
+            player :: state.players
     in
-        ( { model
+        ( { state
             | players = players
             , input = ""
             , playerId = Nothing
@@ -201,28 +245,28 @@ savePlayer model =
         )
 
 
-updatePlayer : Model -> Int -> ( Model, Cmd Msg )
-updatePlayer model id =
+updatePlayer : State -> Id -> ( State, Cmd Msg )
+updatePlayer state id =
     let
-        updateName p =
-            if p.id == id then
-                { p | name = model.input }
+        updateNameInPlayers player =
+            if player.id == id then
+                { player | name = state.input }
             else
-                p
+                player
 
         players =
-            List.map updateName model.players
+            List.map updateNameInPlayers state.players
 
-        updatePlayerName p =
-            if p.playerId == id then
-                { p | playerName = model.input }
+        updateNameInPlays play =
+            if play.playerId == id then
+                { play | playerName = state.input }
             else
-                p
+                play
 
         plays =
-            List.map updatePlayerName model.plays
+            List.map updateNameInPlays state.plays
     in
-        ( { model
+        ( { state
             | players = players
             , plays = plays
             , input = ""
@@ -232,27 +276,33 @@ updatePlayer model id =
         )
 
 
-init : ( Model, Cmd Msg )
-init =
-    ( Model [] [] "" Nothing 0, Cmd.none )
+
+-- VIEW
 
 
-subscriptions : Model -> Sub Msg
-subscriptions model =
-    Sub.none
+pageTitle : Html Msg
+pageTitle =
+    h1 [] [ text "Scorekeeper" ]
 
 
-view : Model -> Html Msg
-view model =
-    div []
-        [ pageTitle
-        , playerForm model
-        , playersHeader
-        , playerList model.players
-        , playsHeader
-        , playList model.plays
-        , totalScore model
+playerForm : State -> Html Msg
+playerForm state =
+    Html.form [ onSubmit Save ]
+        [ input
+            [ type' "text"
+            , placeholder "Add/Edit Player..."
+            , value state.input
+            , onInput InputName
+            ]
+            []
+        , button [ type' "submit" ] [ text "Save" ]
+        , button [ type' "button", onClick Cancel ] [ text "Cancel" ]
         ]
+
+
+playersHeader : Html Msg
+playersHeader =
+    h3 [] [ text "Players:" ]
 
 
 playerList : List Player -> Html Msg
@@ -269,10 +319,15 @@ playerItem : Player -> Html Msg
 playerItem player =
     li []
         [ text (player.name ++ " - " ++ (toString player.score) ++ " points ")
-        , button [ onClick (Score player 2) ] [ text "score 2 points" ]
-        , button [ onClick (Score player 3) ] [ text "score 3 points" ]
-        , button [ onClick (EditPlayer player) ] [ text "Edit Player" ]
+        , button [ onClick <| AddScore player 2 ] [ text "score 2 points" ]
+        , button [ onClick <| AddScore player 3 ] [ text "score 3 points" ]
+        , button [ onClick <| EditPlayer player ] [ text "Edit Player" ]
         ]
+
+
+playsHeader : Html Msg
+playsHeader =
+    h3 [] [ text "Plays:" ]
 
 
 playList : List Play -> Html Msg
@@ -287,41 +342,24 @@ playList plays =
 playItem : Play -> Html Msg
 playItem play =
     li []
-        [ text (play.playerName ++ " " ++ (toString play.score) ++ " points ")
-        , button [ onClick (DeletePlay play) ] [ text "Delete" ]
+        [ text <| play.playerName ++ " " ++ (toString play.score) ++ " points "
+        , button [ onClick <| DeletePlay play ] [ text "Delete" ]
         ]
 
 
-totalScore : Model -> Html Msg
-totalScore model =
-    h3 [] [ text ("Total score: " ++ (toString model.totalScore)) ]
+totalScore : State -> Html Msg
+totalScore state =
+    h3 [] [ text <| "Total score: " ++ (toString state.totalScore) ]
 
 
-pageTitle : Html Msg
-pageTitle =
-    h1 [] [ text "Scorekeeper" ]
-
-
-playersHeader : Html Msg
-playersHeader =
-    h3 [] [ text "Players:" ]
-
-
-playsHeader : Html Msg
-playsHeader =
-    h3 [] [ text "Plays:" ]
-
-
-playerForm : Model -> Html Msg
-playerForm model =
-    Html.form [ onSubmit Save ]
-        [ input
-            [ type' "text"
-            , placeholder "Add/Edit Player..."
-            , value model.input
-            , onInput Input
-            ]
-            []
-        , button [ type' "submit" ] [ text "Save" ]
-        , button [ type' "button", onClick Cancel ] [ text "Cancel" ]
+view : State -> Html Msg
+view state =
+    div []
+        [ pageTitle
+        , playerForm state
+        , playersHeader
+        , playerList state.players
+        , playsHeader
+        , playList state.plays
+        , totalScore state
         ]
